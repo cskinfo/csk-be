@@ -1,0 +1,103 @@
+name: Build, Scan, and Push to Azure ACR
+
+on:
+  # trigger : 1st commit to main branch
+  push:
+    branches: 
+      - main
+      - Development
+
+  # manual rollback/rebuild trigger
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Environment to deploy to"
+        type: environment
+        required: true
+        default: "Development"
+
+permissions:
+  contents: read
+  id-token: write  # Required for Azure OIDC Workload Identity
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_env || ( github.ref == 'refs/heads/main' && 'prod' || 'dev' ) }}
+
+    env:
+      ACR_CSK_BACKEND: csk-backend
+      # Extract the environment name to use in our Docker tags (e.g., 'dev' or 'prod')
+      ENV_TAG: ${{ github.event.inputs.target_env || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Deep fetch is recommended for accurate SonarQube analysis
+
+      # ---------------------------------------------------------
+      # 1. SONARQUBE: Source Code Scanning
+      # ---------------------------------------------------------
+      # - name: SonarQube Scan
+      #   uses: docker://sonarsource/sonar-scanner-cli:latest
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        # with:
+        #   # You can also put these inside a sonar-project.properties file in your repo root
+        #   args: >
+        #     -Dsonar.projectKey=your_project_key_here
+        #     -Dsonar.sources=.
+
+      # ---------------------------------------------------------
+      # 2. AZURE & DOCKER PREP
+      # ---------------------------------------------------------
+      - name: Configure Azure credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Login to ACR
+        run: az acr login --name ${{ vars.ACR_NAME }}
+
+      - name: Calculate Short SHA
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # ---------------------------------------------------------
+      # 3. BUILD DOCKER IMAGE (Do not push yet)
+      # ---------------------------------------------------------
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ steps.vars.outputs.sha_short }} -f Dockerfile .
+
+      # ---------------------------------------------------------
+      # 4. TRIVY: Container Image Vulnerability Scanning
+      # ---------------------------------------------------------
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ steps.vars.outputs.sha_short }}'
+          format: 'table'
+          # Exit-code 1 will FAIL the pipeline if HIGH or CRITICAL vulns are found. 
+          # Change to 0 if you just want to see warnings without breaking the build.
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # ---------------------------------------------------------
+      # 5. PUSH TO ACR (Only runs if Trivy passes)
+      # ---------------------------------------------------------
+      - name: Tag and Push images to AZURE ACR
+        run: |
+          # Tag it as 'latest' for the environment
+          docker tag ${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ steps.vars.outputs.sha_short }} ${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ env.ENV_TAG }}-latest
+
+          # Push both tags
+          docker push ${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ steps.vars.outputs.sha_short }}
+          docker push ${{ vars.ACR_REGISTRY }}/${{ env.ACR_CSK_BACKEND }}:${{ env.ENV_TAG }}-latest
