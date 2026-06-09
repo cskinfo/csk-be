@@ -1,20 +1,39 @@
-const mongoose = require("mongoose");
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-const JobSchema = new mongoose.Schema(
+const Job = sequelize.define(
+  "Job",
   {
-    title: String,
-    badge: String,
-    badgeColor: String,
-    experience: String,
-    location: String,
-    department: String,
-    category: String,
-    skills: String,
-    ctaLabel: String,
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    badge: DataTypes.STRING,
+
+    badgeColor: DataTypes.STRING,
+
+    experience: DataTypes.STRING,
+
+    location: DataTypes.STRING,
+
+    department: DataTypes.STRING,
+
+    category: DataTypes.STRING,
+
+    skills: DataTypes.STRING,
+
+    ctaLabel: DataTypes.STRING,
   },
   {
     timestamps: true,
   }
 );
 
-module.exports = mongoose.model("Job", JobSchema);
+module.exports = Job;

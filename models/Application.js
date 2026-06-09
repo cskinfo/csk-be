@@ -1,21 +1,44 @@
-const mongoose = require("mongoose");
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-const ApplicationSchema = new mongoose.Schema(
+const Application = sequelize.define(
+  "Application",
   {
-    jobTitle: String,
-    name: String,
-    email: String,
-    phone: String,
-    experience: String,
-    message: String,
-    resume: String,
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+
+    jobTitle: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    phone: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    experience: DataTypes.STRING,
+
+    message: DataTypes.TEXT,
+
+    resume: DataTypes.STRING,
   },
   {
     timestamps: true,
   }
 );
 
-module.exports = mongoose.model(
-  "Application",
-  ApplicationSchema
-);
+module.exports = Application;
