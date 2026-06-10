@@ -124,20 +124,27 @@ app.get("/api/gallery", async (req, res) => {
 });
 
 // ── Upload new gallery photo ──
+
+// ── Upload new gallery photo ──
 app.post("/api/gallery", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "Image file is required" });
     }
 
-    // Upload to FTP — temp file cleanup is handled inside uploadToFTP()
-    const imageUrl = await uploadToFTP(req.file.path, req.file.filename);
+    // 1. Upload to FTP (Make sure your FTP function points to 'public_html/csk_gallery')
+    await uploadToFTP(req.file.path, req.file.filename);
 
+    // 2. Manually construct the CLEAN public URL for the website
+    // DO NOT include 'public_html' here!
+    const publicImageUrl = `https://cskinfotech.com/csk_gallery/${req.file.filename}`;
+
+    // 3. Save the clean public URL to your database
     const item = await Gallery.create({
       title: req.body.title,
       category: req.body.category,
       span: req.body.span,
-      image: imageUrl,
+      image: publicImageUrl, // <-- Saved correctly now
     });
 
     res.status(201).json(item);
@@ -146,6 +153,33 @@ app.post("/api/gallery", upload.single("image"), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+
+// --------------------------------------------------------------------------------------------
+// app.post("/api/gallery", upload.single("image"), async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ message: "Image file is required" });
+//     }
+
+//     // Upload to FTP — temp file cleanup is handled inside uploadToFTP()
+//     const imageUrl = await uploadToFTP(req.file.path, req.file.filename);
+
+//     const item = await Gallery.create({
+//       title: req.body.title,
+//       category: req.body.category,
+//       span: req.body.span,
+//       image: imageUrl,
+//     });
+
+//     res.status(201).json(item);
+//   } catch (error) {
+//     console.error("Gallery upload error:", error.message);
+//     res.status(500).json({ message: error.message });
+//   }
+// });
+
+// ------------------------------------------------------------------------------------------
 
 // ── Edit gallery item (title/category/span only — no re-upload) ──
 app.put("/api/gallery/:id", async (req, res) => {
