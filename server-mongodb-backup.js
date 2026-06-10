@@ -129,7 +129,7 @@ app.post(
         title: req.body.title,
         category: req.body.category,
         span: req.body.span,
-        image: `http://localhost:5000/uploads/${req.file.filename}`,
+        image: `https://api.cskinfotech.com/uploads/${req.file.filename}`,
       });
 
       await item.save();
@@ -191,7 +191,7 @@ app.post(
         experience: req.body.experience,
         message: req.body.message,
         resume: req.file
-          ? `http://localhost:5000/uploads/${req.file.filename}`
+          ? `https://api.cskinfotech.com/uploads/${req.file.filename}`
           : "",
       });
 
