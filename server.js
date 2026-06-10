@@ -123,6 +123,30 @@ app.get("/api/gallery", async (req, res) => {
   }
 });
 
+
+app.post("/api/gallery", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Image file is required" });
+    }
+
+    // Upload to FTP — temp file cleanup is handled inside uploadToFTP()
+    const imageUrl = await uploadToFTP(req.file.path, req.file.filename);
+
+    const item = await Gallery.create({
+      title: req.body.title,
+      category: req.body.category,
+      span: req.body.span,
+      image: imageUrl,
+    });
+
+    res.status(201).json(item);
+  } catch (error) {
+    console.error("Gallery upload error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // ── Upload new gallery photo ──
 
 // // ── Upload new gallery photo ──
@@ -156,28 +180,28 @@ app.get("/api/gallery", async (req, res) => {
 
 
 // --------------------------------------------------------------------------------------------
-app.post("/api/gallery", upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "Image file is required" });
-    }
+// app.post("/api/gallery", upload.single("image"), async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ message: "Image file is required" });
+//     }
 
-    // Upload to FTP — temp file cleanup is handled inside uploadToFTP()
-    const imageUrl = await uploadToFTP(req.file.path, req.file.filename);
+//     // Upload to FTP — temp file cleanup is handled inside uploadToFTP()
+//     const imageUrl = await uploadToFTP(req.file.path, req.file.filename);
 
-    const item = await Gallery.create({
-      title: req.body.title,
-      category: req.body.category,
-      span: req.body.span,
-      image: imageUrl,
-    });
+//     const item = await Gallery.create({
+//       title: req.body.title,
+//       category: req.body.category,
+//       span: req.body.span,
+//       image: imageUrl,
+//     });
 
-    res.status(201).json(item);
-  } catch (error) {
-    console.error("Gallery upload error:", error.message);
-    res.status(500).json({ message: error.message });
-  }
-});
+//     res.status(201).json(item);
+//   } catch (error) {
+//     console.error("Gallery upload error:", error.message);
+//     res.status(500).json({ message: error.message });
+//   }
+// });
 
 // ------------------------------------------------------------------------------------------
 
