@@ -41,7 +41,7 @@ async function uploadToFTP(localFilePath, fileName) {
       }
     });
 
-    return `https://cskinfotech.com/csk_gallery/${fileName}`;
+    return `https://gallery.cskinfotech.com/${fileName}`;
 
   } catch (err) {
     console.error("❌ FTP Upload Error:", err.message);
